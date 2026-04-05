@@ -324,6 +324,7 @@ export function StudentHome() {
               ))}
             </div>
           )}
+        </div>
 
         {/* Deadlines + notifications */}
         <div className="flex flex-col gap-4">
