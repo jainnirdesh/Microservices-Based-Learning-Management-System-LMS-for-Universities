@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { KpiCard } from '../components/KpiCard';
 import { StatusBadge } from '../components/Table';
 import { Icon } from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabaseClient';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip
 } from 'recharts';
-import { studentCourses, deadlines } from '../data/mockData';
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload?.length) {
@@ -21,53 +21,161 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-const radarData = [
-  { subject: 'Distributed Sys.', score: 88 },
-  { subject: 'OS', score: 74 },
-  { subject: 'Math', score: 91 },
-  { subject: 'DSA', score: 95 },
-  { subject: 'Networks', score: 79 },
-];
-
-const attendanceByCourse = [
-  { code: 'CS401', title: 'Distributed Systems', attended: 22, total: 24 },
-  { code: 'CS305', title: 'Operating Systems', attended: 19, total: 22 },
-  { code: 'MA201', title: 'Engineering Mathematics', attended: 21, total: 23 },
-  { code: 'CS210', title: 'Data Structures', attended: 20, total: 21 },
-];
-
-const attendanceByDate = [
-  {
-    date: 'Apr 04, 2026',
-    sessions: [
-      { course: 'CS401', slot: '10:00-11:00', status: 'Present' },
-      { course: 'CS210', slot: '14:00-15:30', status: 'Present' },
-    ],
-  },
-  {
-    date: 'Apr 03, 2026',
-    sessions: [
-      { course: 'MA201', slot: '11:00-12:00', status: 'Present' },
-      { course: 'CS305', slot: '10:00-11:00', status: 'Absent' },
-    ],
-  },
-  {
-    date: 'Apr 02, 2026',
-    sessions: [
-      { course: 'CS401', slot: '10:00-11:00', status: 'Present' },
-    ],
-  },
-  {
-    date: 'Apr 01, 2026',
-    sessions: [
-      { course: 'CS210', slot: '14:00-15:30', status: 'Present' },
-    ],
-  },
-];
-
 export function StudentHome() {
   const { profile } = useAuth();
   const displayName = profile?.full_name || 'Student';
+  const [cgpa, setCgpa] = useState('0.0');
+  const [enrolledCourses, setEnrolledCourses] = useState([]);
+  const [attendanceByCourse, setAttendanceByCourse] = useState([]);
+  const [attendanceByDate, setAttendanceByDate] = useState([]);
+  const [radarData, setRadarData] = useState([]);
+  const [scoreTrendData, setScoreTrendData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!profile?.id) return;
+    
+    const fetchDashboardData = async () => {
+      try {
+        // Fetch enrolled subjects
+        const { data: enrollments } = await supabase
+          .from('student_enrollments')
+          .select(`
+            id,
+            section_id,
+            sections!inner(id, code, name, academic_year),
+            subject_offerings!inner(id, subject_id, subjects!inner(id, code, name, credits))
+          `)
+          .eq('student_id', profile.id)
+          .eq('status', 'active');
+
+        if (enrollments && enrollments.length > 0) {
+          // Fetch grades for all enrolled subjects
+          const subjectIds = enrollments.map(e => e.subject_offerings.subject_id);
+          const { data: grades } = await supabase
+            .from('student_grades')
+            .select('*')
+            .eq('student_id', profile.id)
+            .in('subject_id', subjectIds);
+
+          // Calculate CGPA
+          if (grades && grades.length > 0) {
+            const avgScore = grades.reduce((sum, g) => sum + (g.score / g.max_score) * 10, 0) / grades.length;
+            setCgpa(avgScore.toFixed(1));
+          }
+
+          // Transform enrolled courses data
+          const coursesData = enrollments.map(enrollment => {
+            const subjectGrades = grades?.filter(g => g.subject_id === enrollment.subject_offerings.subject_id) || [];
+            const avgGrade = subjectGrades.length > 0
+              ? subjectGrades.reduce((sum, g) => sum + g.score, 0) / subjectGrades.length
+              : 0;
+            return {
+              id: enrollment.subject_offerings.subjects.code,
+              title: enrollment.subject_offerings.subjects.name,
+              credits: enrollment.subject_offerings.subjects.credits,
+              faculty: 'Faculty',
+              progress: Math.min(100, Math.round((subjectGrades.length / 5) * 100)),
+              next: subjectGrades.length > 0 ? `Score: ${avgGrade.toFixed(1)}/100` : 'No grades yet',
+            };
+          });
+          setEnrolledCourses(coursesData);
+
+          // Fetch attendance data
+          const { data: attendanceRecords } = await supabase
+            .from('attendance_records')
+            .select(`
+              id,
+              student_id,
+              status,
+              marked_at,
+              attendance_sessions!inner(
+                id,
+                class_date,
+                start_time,
+                end_time,
+                subject_offerings!inner(subjects!inner(code, name))
+              )
+            `)
+            .eq('student_id', profile.id);
+
+          if (attendanceRecords && attendanceRecords.length > 0) {
+            // Group by course
+            const byCourseMemo = {};
+            attendanceRecords.forEach(rec => {
+              const courseCode = rec.attendance_sessions.subject_offerings.subjects.code;
+              const courseTitle = rec.attendance_sessions.subject_offerings.subjects.name;
+              if (!byCourseMemo[courseCode]) {
+                byCourseMemo[courseCode] = {
+                  code: courseCode,
+                  title: courseTitle,
+                  attended: 0,
+                  total: 0
+                };
+              }
+              byCourseMemo[courseCode].total += 1;
+              if (rec.status === 'present') {
+                byCourseMemo[courseCode].attended += 1;
+              }
+            });
+            setAttendanceByCourse(Object.values(byCourseMemo));
+
+            // Group by date
+            const byDateMemo = {};
+            attendanceRecords.forEach(rec => {
+              const dateStr = new Date(rec.attendance_sessions.class_date).toLocaleDateString('en-US', {
+                month: 'short',
+                day: '2-digit',
+                year: 'numeric',
+              });
+              if (!byDateMemo[dateStr]) {
+                byDateMemo[dateStr] = { date: dateStr, sessions: [] };
+              }
+              byDateMemo[dateStr].sessions.push({
+                course: rec.attendance_sessions.subject_offerings.subjects.code,
+                slot: `${rec.attendance_sessions.start_time || '09:00'}-${rec.attendance_sessions.end_time || '10:00'}`,
+                status: rec.status.charAt(0).toUpperCase() + rec.status.slice(1),
+              });
+            });
+            const dates = Object.values(byDateMemo)
+              .sort((a, b) => new Date(b.date) - new Date(a.date))
+              .slice(0, 10);
+            setAttendanceByDate(dates);
+          }
+
+          // Build radar data from grades
+          if (grades && grades.length > 0) {
+            const radarItems = grades.slice(0, 5).map(g => {
+              const subject = enrollments.find(e => e.subject_offerings.subject_id === g.subject_id);
+              return {
+                subject: (subject?.subject_offerings.subjects.name || 'Subject').substring(0, 12),
+                score: Math.round((g.score / g.max_score) * 100),
+              };
+            });
+            setRadarData(radarItems);
+
+            // Score trend (mock weekly data for now)
+            const trend = [
+              { week: 'W1', score: Math.max(60, grades[0]?.score - 15 || 70) },
+              { week: 'W2', score: Math.max(60, grades[0]?.score - 10 || 75) },
+              { week: 'W3', score: Math.max(60, grades[0]?.score - 5 || 80) },
+              { week: 'W4', score: grades[0]?.score || 85 },
+              { week: 'W5', score: Math.min(100, grades[0]?.score + 2 || 87) },
+              { week: 'W6', score: Math.round(grades.reduce((sum, g) => sum + g.score, 0) / grades.length) },
+            ];
+            setScoreTrendData(trend);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [profile?.id]);
+
   const totalAttended = attendanceByCourse.reduce((sum, item) => sum + item.attended, 0);
   const totalClasses = attendanceByCourse.reduce((sum, item) => sum + item.total, 0);
   const attendancePercent = totalClasses ? Math.round((totalAttended / totalClasses) * 100) : 0;
@@ -82,16 +190,16 @@ export function StudentHome() {
           <p className="text-xs text-primary-100 mt-0.5">Computer Science — Semester VI</p>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-semibold">8.4</div>
+          <div className="text-2xl font-semibold">{cgpa}</div>
           <div className="text-xs text-primary-100">Current CGPA</div>
         </div>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <KpiCard label="Enrolled Courses" value="4" icon="BookOpen" />
+        <KpiCard label="Enrolled Courses" value={enrolledCourses.length.toString()} icon="BookOpen" />
         <KpiCard label="Pending Tasks" value="3" icon="ClipboardList" />
-        <KpiCard label="Avg. Score" value="87.0" change="+3.2" up icon="Award" />
+        <KpiCard label="Avg. Score" value={cgpa} change="+3.2" up icon="Award" />
         <KpiCard label="Attendance" value={`${attendancePercent}%`} change="+1%" up icon="Check" />
       </div>
 
@@ -176,41 +284,46 @@ export function StudentHome() {
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-3">
-            {studentCourses.map((c) => (
-              <div key={c.id} className="border border-gray-100 rounded-xl p-4 hover:border-primary-200 hover:bg-primary-50/30 transition-colors cursor-pointer">
-                <div className="flex items-start justify-between mb-2">
-                  <span className="text-xs font-mono text-gray-400">{c.id}</span>
-                  <span className="text-xs text-gray-400">{c.credits} cr</span>
-                </div>
-                <h4 className="text-sm font-semibold text-gray-900 mb-1">{c.title}</h4>
-                <p className="text-xs text-gray-400 mb-3">{c.faculty}</p>
-
-                {/* Progress */}
-                <div className="mb-1.5">
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="text-gray-500">Progress</span>
-                    <span className="font-medium text-gray-700">{c.progress}%</span>
+          {loading ? (
+            <div className="text-sm text-gray-500">Loading courses...</div>
+          ) : enrolledCourses.length === 0 ? (
+            <div className="text-sm text-gray-400">No enrolled courses found</div>
+          ) : (
+            <div className="grid sm:grid-cols-2 gap-3">
+              {enrolledCourses.map((c) => (
+                <div key={c.id} className="border border-gray-100 rounded-xl p-4 hover:border-primary-200 hover:bg-primary-50/30 transition-colors cursor-pointer">
+                  <div className="flex items-start justify-between mb-2">
+                    <span className="text-xs font-mono text-gray-400">{c.id}</span>
+                    <span className="text-xs text-gray-400">{c.credits} cr</span>
                   </div>
-                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${c.progress >= 80 ? 'bg-green-500' : 'bg-primary-500'}`}
-                      style={{ width: `${c.progress}%` }}
-                    />
-                  </div>
-                </div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-1">{c.title}</h4>
+                  <p className="text-xs text-gray-400 mb-3">{c.faculty}</p>
 
-                <p className="text-xs text-gray-400">
-                  {c.next === 'Completed' ? (
-                    <span className="text-green-600 font-medium">Completed</span>
-                  ) : (
-                    <>Next deadline: <span className="text-gray-600 font-medium">{c.next}</span></>
-                  )}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
+                  {/* Progress */}
+                  <div className="mb-1.5">
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="text-gray-500">Progress</span>
+                      <span className="font-medium text-gray-700">{c.progress}%</span>
+                    </div>
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${c.progress >= 80 ? 'bg-green-500' : 'bg-primary-500'}`}
+                        style={{ width: `${c.progress}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-gray-400">
+                    {c.next === 'Completed' ? (
+                      <span className="text-green-600 font-medium">Completed</span>
+                    ) : (
+                      <>Next: <span className="text-gray-600 font-medium">{c.next}</span></>
+                    )}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
 
         {/* Deadlines + notifications */}
         <div className="flex flex-col gap-4">
@@ -218,18 +331,7 @@ export function StudentHome() {
           <div className="card p-5">
             <h3 className="text-sm font-semibold text-gray-900 mb-4">Upcoming Deadlines</h3>
             <div className="flex flex-col gap-3">
-              {deadlines.map((d, i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${
-                    d.priority === 'High' ? 'bg-red-500' : 'bg-amber-400'
-                  }`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-gray-900 truncate">{d.task}</p>
-                    <p className="text-xs text-gray-400">{d.course} · {d.due}</p>
-                  </div>
-                  <StatusBadge status={d.priority} />
-                </div>
-              ))}
+              <div className="text-xs text-gray-400">No upcoming deadlines</div>
             </div>
           </div>
 
@@ -263,13 +365,19 @@ export function StudentHome() {
             <h3 className="text-sm font-semibold text-gray-900">Subject Performance</h3>
             <p className="text-xs text-gray-400 mt-0.5">Scores across enrolled courses</p>
           </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <RadarChart data={radarData}>
-              <PolarGrid stroke="#E2E8F0" />
-              <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: '#94A3B8' }} />
-              <Radar dataKey="score" stroke="#2563EB" fill="#2563EB" fillOpacity={0.1} strokeWidth={2} />
-            </RadarChart>
-          </ResponsiveContainer>
+          {loading || radarData.length === 0 ? (
+            <div className="h-[200px] flex items-center justify-center text-gray-400 text-sm">
+              Loading performance data...
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <RadarChart data={radarData}>
+                <PolarGrid stroke="#E2E8F0" />
+                <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: '#94A3B8' }} />
+                <Radar dataKey="score" stroke="#2563EB" fill="#2563EB" fillOpacity={0.1} strokeWidth={2} />
+              </RadarChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         <div className="card p-5">
@@ -277,25 +385,24 @@ export function StudentHome() {
             <h3 className="text-sm font-semibold text-gray-900">Score Trend</h3>
             <p className="text-xs text-gray-400 mt-0.5">Weekly score progression</p>
           </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart
-              data={[
-                { week: 'W1', score: 72 },
-                { week: 'W2', score: 78 },
-                { week: 'W3', score: 75 },
-                { week: 'W4', score: 83 },
-                { week: 'W5', score: 88 },
-                { week: 'W6', score: 87 },
-              ]}
-              margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-              <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-              <YAxis domain={[60, 100]} tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-              <Tooltip content={<CustomTooltip />} />
-              <Line type="monotone" dataKey="score" stroke="#2563EB" strokeWidth={2} dot={{ fill: '#2563EB', r: 3 }} activeDot={{ r: 5 }} />
-            </LineChart>
-          </ResponsiveContainer>
+          {loading || scoreTrendData.length === 0 ? (
+            <div className="h-[200px] flex items-center justify-center text-gray-400 text-sm">
+              Loading trend data...
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart
+                data={scoreTrendData}
+                margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+                <YAxis domain={[60, 100]} tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Line type="monotone" dataKey="score" stroke="#2563EB" strokeWidth={2} dot={{ fill: '#2563EB', r: 3 }} activeDot={{ r: 5 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
     </div>
