@@ -1,0 +1,13 @@
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/course-service/src/main/java/com/unicore/courses/CourseServiceApplication.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/course-service/src/main/java/com/unicore/courses/config/SecurityConfig.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/course-service/src/main/java/com/unicore/courses/controller/CourseController.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/course-service/src/main/java/com/unicore/courses/dto/CourseDtos.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/course-service/src/main/java/com/unicore/courses/exception/ApiException.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/course-service/src/main/java/com/unicore/courses/exception/GlobalExceptionHandler.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/course-service/src/main/java/com/unicore/courses/model/Course.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/course-service/src/main/java/com/unicore/courses/model/CourseModule.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/course-service/src/main/java/com/unicore/courses/model/Enrollment.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/course-service/src/main/java/com/unicore/courses/model/Lesson.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/course-service/src/main/java/com/unicore/courses/repository/CourseRepository.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/course-service/src/main/java/com/unicore/courses/security/JwtAuthFilter.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/course-service/src/main/java/com/unicore/courses/service/CourseService.java

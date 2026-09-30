@@ -1,0 +1,12 @@
+server:
+  port: 8083
+spring:
+  application:
+    name: assessment-service
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/unicore_assessments}
+jwt:
+  secret: ${JWT_SECRET:unicore-development-secret-key-change-me-please-keep-long}
+services:
+  notification-url: ${NOTIFICATION_SERVICE_URL:http://localhost:8084}

@@ -1,0 +1,16 @@
+com/unicore/courses/dto/CourseDtos$ProgressRequest.class
+com/unicore/courses/model/Course.class
+com/unicore/courses/service/CourseService.class
+com/unicore/courses/dto/CourseDtos$EnrollmentRequest.class
+com/unicore/courses/model/Lesson.class
+com/unicore/courses/model/CourseModule.class
+com/unicore/courses/exception/ApiException.class
+com/unicore/courses/security/JwtAuthFilter.class
+com/unicore/courses/exception/GlobalExceptionHandler.class
+com/unicore/courses/repository/CourseRepository.class
+com/unicore/courses/CourseServiceApplication.class
+com/unicore/courses/controller/CourseController.class
+com/unicore/courses/dto/CourseDtos$CourseRequest.class
+com/unicore/courses/dto/CourseDtos.class
+com/unicore/courses/model/Enrollment.class
+com/unicore/courses/config/SecurityConfig.class

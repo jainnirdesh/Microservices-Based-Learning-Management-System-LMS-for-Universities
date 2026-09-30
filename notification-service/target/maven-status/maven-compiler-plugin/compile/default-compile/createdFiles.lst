@@ -1,0 +1,9 @@
+com/unicore/notifications/dto/NotificationDtos.class
+com/unicore/notifications/service/NotificationService.class
+com/unicore/notifications/NotificationServiceApplication.class
+com/unicore/notifications/security/JwtAuthFilter.class
+com/unicore/notifications/model/Notification.class
+com/unicore/notifications/dto/NotificationDtos$NotificationEvent.class
+com/unicore/notifications/config/SecurityConfig.class
+com/unicore/notifications/controller/NotificationController.class
+com/unicore/notifications/repository/NotificationRepository.class

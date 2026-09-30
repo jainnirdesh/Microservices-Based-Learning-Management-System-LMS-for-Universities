@@ -1,0 +1,10 @@
+server:
+  port: 8084
+spring:
+  application:
+    name: notification-service
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/unicore_notifications}
+jwt:
+  secret: ${JWT_SECRET:unicore-development-secret-key-change-me-please-keep-long}

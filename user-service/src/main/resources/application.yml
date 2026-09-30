@@ -1,0 +1,13 @@
+server:
+  port: 8081
+spring:
+  application:
+    name: user-service
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/unicore_users}
+jwt:
+  secret: ${JWT_SECRET:unicore-development-secret-key-change-me-please-keep-long}
+  expiration-minutes: 480
+services:
+  course-url: ${COURSE_SERVICE_URL:http://localhost:8082}

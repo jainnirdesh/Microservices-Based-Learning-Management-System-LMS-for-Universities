@@ -1,0 +1,14 @@
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/user-service/src/main/java/com/unicore/users/UserServiceApplication.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/user-service/src/main/java/com/unicore/users/config/SecurityConfig.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/user-service/src/main/java/com/unicore/users/controller/AuthController.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/user-service/src/main/java/com/unicore/users/controller/UserController.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/user-service/src/main/java/com/unicore/users/dto/AuthDtos.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/user-service/src/main/java/com/unicore/users/exception/ApiException.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/user-service/src/main/java/com/unicore/users/exception/GlobalExceptionHandler.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/user-service/src/main/java/com/unicore/users/model/Role.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/user-service/src/main/java/com/unicore/users/model/User.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/user-service/src/main/java/com/unicore/users/repository/UserRepository.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/user-service/src/main/java/com/unicore/users/security/JwtAuthFilter.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/user-service/src/main/java/com/unicore/users/security/JwtService.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/user-service/src/main/java/com/unicore/users/service/AuthService.java
+/Users/nirdeshjain/Documents/Microservices-Based-Learning-Management-System-LMS-for-Universities/user-service/src/main/java/com/unicore/users/service/UserManagementService.java
